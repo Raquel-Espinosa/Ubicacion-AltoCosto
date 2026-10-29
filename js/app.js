@@ -1,5 +1,5 @@
 // ==========================================================================
-// LÓGICA PRINCIPAL DE LA APLICACIÓN - CONTROL DE GRUPOS DE ENTREGA Y AUDITORÍA
+// LÓGICA PRINCIPAL DE LA APP (OPTIMIZADA PARA CELULAR Y ESCÁNER)
 // ==========================================================================
 
 const AppState = {
@@ -7,7 +7,11 @@ const AppState = {
   currentArea: "AUDITAR", // "AUDITAR" (7 chars) | "TARIMAS" (2 chars)
   currentTipo: "ENTRADA", // "ENTRADA" | "SALIDA"
   lastHistorial: [],
-  isSubmitting: false
+  isSubmitting: false,
+  virtualKeyboardEnabled: true,
+  html5QrCode: null,
+  cameraActive: false,
+  cameraMode: "CAPTURA" // "CAPTURA" | "BUSCAR"
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -20,23 +24,29 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ==========================================================================
-// SONIDO DE RETROALIMENTACIÓN PARA ESCÁNER (BEEP)
+// SONIDO + VIBRACIÓN HÁPTICA EN CELULAR
 // ==========================================================================
-function playScannerBeep(success = true) {
+function playScannerFeedback(success = true) {
+  // Vibración en celular Android
+  try {
+    if (navigator.vibrate) {
+      navigator.vibrate(success ? [70] : [120, 60, 120]);
+    }
+  } catch (e) {}
+
+  // Beep sonoro
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = success ? "sine" : "sawtooth";
-    osc.frequency.setValueAtTime(success ? 880 : 240, ctx.currentTime);
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    osc.frequency.setValueAtTime(success ? 920 : 230, ctx.currentTime);
+    gain.gain.setValueAtTime(0.14, ctx.currentTime);
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start();
-    osc.stop(ctx.currentTime + (success ? 0.11 : 0.25));
-  } catch (e) {
-    // Ignorar si el navegador bloquea audio sin interacción
-  }
+    osc.stop(ctx.currentTime + (success ? 0.1 : 0.24));
+  } catch (e) {}
 }
 
 function showToast(msg, type = "success") {
@@ -47,7 +57,7 @@ function showToast(msg, type = "success") {
   container.appendChild(el);
   setTimeout(() => {
     el.remove();
-  }, 3800);
+  }, 3200);
 }
 
 // ==========================================================================
@@ -58,10 +68,10 @@ function updateConnectionBadge() {
   const txt = document.getElementById("statusText");
   if (CONFIG.DEMO_MODE) {
     btn.className = "badge-status demo";
-    txt.textContent = "Modo Demo (Local)";
+    txt.textContent = "Demo";
   } else {
     btn.className = "badge-status live";
-    txt.textContent = "Conectado a Google Sheets";
+    txt.textContent = "En Línea";
   }
 }
 
@@ -101,10 +111,10 @@ function setLoggedUser(user) {
   document.getElementById("lblUserName").textContent = user.nombre || user.usuario;
   const roleBadge = document.getElementById("lblUserRole");
   const isAdmin = String(user.rol).toLowerCase().includes("admin");
-  roleBadge.textContent = isAdmin ? "Administrativo" : "Operativo";
+  roleBadge.textContent = isAdmin ? "ADMIN" : "OPER";
   roleBadge.className = `role-tag ${isAdmin ? "admin" : "operativo"}`;
 
-  // Mostrar/ocultar pestañas exclusivas del Administrativo
+  // Mostrar u ocultar pestañas exclusivas del Administrativo
   const tabBtnBuscar = document.getElementById("tabBtnBuscar");
   const tabBtnUsuarios = document.getElementById("tabBtnUsuarios");
   if (isAdmin) {
@@ -121,6 +131,7 @@ function setLoggedUser(user) {
 }
 
 function logout() {
+  stopCameraScanner();
   AppState.currentUser = null;
   sessionStorage.removeItem("grupos_entrega_user");
   document.getElementById("userHeaderInfo").classList.add("hidden");
@@ -130,6 +141,10 @@ function logout() {
 }
 
 function switchTab(tabId) {
+  if (tabId !== "tabCaptura") {
+    stopCameraScanner();
+  }
+
   document.querySelectorAll(".nav-tab").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.tab === tabId);
   });
@@ -140,11 +155,176 @@ function switchTab(tabId) {
   if (tabId === "tabCaptura") {
     loadMovimientosRecientes();
     setTimeout(() => document.getElementById("inputTienda").focus(), 100);
+  } else if (tabId === "tabRecientes") {
+    loadMovimientosRecientes();
   } else if (tabId === "tabBuscar") {
     ejecutarBusquedaGrupo();
-    setTimeout(() => document.getElementById("searchGrupoInput").focus(), 100);
   } else if (tabId === "tabUsuarios") {
     cargarListaUsuarios();
+  }
+}
+
+// ==========================================================================
+// CONTROL DE TECLADO EN PANTALLA (PARA ESCÁNER BLUETOOTH EN CELULAR)
+// ==========================================================================
+function toggleVirtualKeyboard() {
+  AppState.virtualKeyboardEnabled = !AppState.virtualKeyboardEnabled;
+  const lbl = document.getElementById("lblKbState");
+  const inputsNumeric = [
+    document.getElementById("inputTienda"),
+    document.getElementById("inputEntrega")
+  ];
+  const inputUb = document.getElementById("inputUbicacion");
+
+  if (AppState.virtualKeyboardEnabled) {
+    lbl.textContent = "Activo";
+    inputsNumeric.forEach(i => i.setAttribute("inputmode", "numeric"));
+    inputUb.setAttribute("inputmode", "text");
+    showToast("⌨️ Teclado del celular activado", "success");
+  } else {
+    lbl.textContent = "Oculto (BT)";
+    inputsNumeric.forEach(i => i.setAttribute("inputmode", "none"));
+    inputUb.setAttribute("inputmode", "none");
+    showToast("📡 Modo Escáner Bluetooth: teclado oculto", "success");
+  }
+}
+
+// ==========================================================================
+// ESCÁNER DE CÓDIGO DE BARRAS CON LA CÁMARA DEL CELULAR
+// ==========================================================================
+async function startCameraScanner(mode = "CAPTURA") {
+  AppState.cameraMode = mode;
+  const box = document.getElementById("cameraScannerBox");
+
+  if (mode === "BUSCAR") {
+    // Cambiar a vista de captura o abrir lector rápido
+    switchTab("tabCaptura");
+    AppState.cameraMode = "BUSCAR";
+  }
+
+  box.classList.remove("hidden");
+  updateCameraTargetLabel();
+
+  if (typeof Html5Qrcode === "undefined") {
+    showToast("Cargando módulo de cámara, intenta de nuevo en 1 seg.", "error");
+    return;
+  }
+
+  try {
+    if (AppState.html5QrCode && AppState.cameraActive) {
+      await AppState.html5QrCode.stop();
+    }
+    AppState.html5QrCode = new Html5Qrcode("qrReader");
+    AppState.cameraActive = true;
+
+    await AppState.html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 12, qrbox: { width: 240, height: 110 } },
+      (decodedText) => {
+        handleCameraCodeScanned(decodedText);
+      },
+      () => {}
+    );
+  } catch (err) {
+    AppState.cameraActive = false;
+    showToast("No se pudo acceder a la cámara del celular. Verifica los permisos.", "error");
+    box.classList.add("hidden");
+  }
+}
+
+async function stopCameraScanner() {
+  const box = document.getElementById("cameraScannerBox");
+  box.classList.add("hidden");
+  if (AppState.html5QrCode && AppState.cameraActive) {
+    try {
+      await AppState.html5QrCode.stop();
+      AppState.html5QrCode.clear();
+    } catch (e) {}
+  }
+  AppState.cameraActive = false;
+}
+
+function updateCameraTargetLabel() {
+  const lbl = document.getElementById("lblCameraTarget");
+  if (AppState.cameraMode === "BUSCAR") {
+    lbl.textContent = "📷 Escanea el Grupo (8 dígitos) a buscar";
+    return;
+  }
+  const t = document.getElementById("inputTienda").value.trim();
+  const e = document.getElementById("inputEntrega").value.trim();
+  if (t.length < 4) {
+    lbl.textContent = "📷 Paso 1: Escanea Tienda (4 dígitos)";
+  } else if (e.length < 8) {
+    lbl.textContent = "📷 Paso 2: Escanea Entrega / Grupo (8 dígitos)";
+  } else {
+    lbl.textContent = `📷 Paso 3: Escanea Ubicación (${AppState.currentArea === "AUDITAR" ? "7" : "2"} díg.)`;
+  }
+}
+
+let lastScannedRaw = "";
+let lastScannedTime = 0;
+
+function handleCameraCodeScanned(rawText) {
+  const clean = String(rawText || "").trim().toUpperCase();
+  if (!clean) return;
+
+  const now = Date.now();
+  if (clean === lastScannedRaw && now - lastScannedTime < 1600) {
+    return; // Evitar lectura duplicada del mismo código en menos de 1.6s
+  }
+  lastScannedRaw = clean;
+  lastScannedTime = now;
+
+  if (AppState.cameraMode === "BUSCAR") {
+    playScannerFeedback(true);
+    stopCameraScanner();
+    switchTab("tabBuscar");
+    document.getElementById("searchGrupoInput").value = clean;
+    ejecutarBusquedaGrupo();
+    return;
+  }
+
+  const inputTienda = document.getElementById("inputTienda");
+  const inputEntrega = document.getElementById("inputEntrega");
+  const inputUbicacion = document.getElementById("inputUbicacion");
+
+  // Detectar automáticamente qué código se escaneó por su formato o por el paso actual
+  const onlyDigits = clean.replace(/\D/g, "");
+
+  if (/^\d{4}$/.test(clean) || (inputTienda.value.length < 4 && onlyDigits.length === 4)) {
+    inputTienda.value = onlyDigits;
+    playScannerFeedback(true);
+    showToast(`🏬 Tienda escaneada: ${onlyDigits}`, "success");
+    updateCounters();
+    updateCameraTargetLabel();
+    inputEntrega.focus();
+    return;
+  }
+
+  if (/^\d{8}$/.test(clean) || (inputEntrega.value.length < 8 && onlyDigits.length === 8)) {
+    inputEntrega.value = onlyDigits;
+    playScannerFeedback(true);
+    showToast(`📦 Grupo escaneado: ${onlyDigits}`, "success");
+    updateCounters();
+    updateCameraTargetLabel();
+    inputUbicacion.focus();
+    return;
+  }
+
+  // De lo contrario, procesarlo como Ubicación
+  const normUb = normalizeUbicacionInput(clean);
+  const reqLen = AppState.currentArea === "AUDITAR" ? 7 : 2;
+  if (normUb.length === reqLen) {
+    inputUbicacion.value = normUb;
+    playScannerFeedback(true);
+    updateCounters();
+    updateCameraTargetLabel();
+    if (document.getElementById("chkAutoSubmit").checked && isCaptureFormValid()) {
+      handleRegistrarSubmit(new Event("submit"));
+    }
+  } else {
+    playScannerFeedback(false);
+    showToast(`Código leído (${clean}) no coincide con el formato esperado.`, "error");
   }
 }
 
@@ -155,27 +335,23 @@ function updateCaptureModeUI() {
   const isAuditar = AppState.currentArea === "AUDITAR";
   const isEntrada = AppState.currentTipo === "ENTRADA";
 
-  const btnAuditar = document.getElementById("btnModeAuditar");
-  const btnTarimas = document.getElementById("btnModeTarimas");
-  btnAuditar.className = `mode-btn ${isAuditar ? "active-auditar" : ""}`;
-  btnTarimas.className = `mode-btn ${!isAuditar ? "active-tarimas" : ""}`;
+  document.getElementById("btnModeAuditar").className = `mode-btn ${isAuditar ? "active-auditar" : ""}`;
+  document.getElementById("btnModeTarimas").className = `mode-btn ${!isAuditar ? "active-tarimas" : ""}`;
 
-  const btnEntrada = document.getElementById("btnTipoEntrada");
-  const btnSalida = document.getElementById("btnTipoSalida");
-  btnEntrada.className = `mode-btn ${isEntrada ? "active-entrada" : ""}`;
-  btnSalida.className = `mode-btn ${!isEntrada ? "active-salida" : ""}`;
+  document.getElementById("btnTipoEntrada").className = `mode-btn ${isEntrada ? "active-entrada" : ""}`;
+  document.getElementById("btnTipoSalida").className = `mode-btn ${!isEntrada ? "active-salida" : ""}`;
 
   const lblUbicacion = document.getElementById("lblUbicacionTitulo");
   const inputUbicacion = document.getElementById("inputUbicacion");
 
   if (isAuditar) {
-    lblUbicacion.textContent = "📍 Ubicación para Auditar (7 caracteres)";
+    lblUbicacion.textContent = "📍 Ubicación Auditar (7 díg.)";
     inputUbicacion.maxLength = 7;
-    inputUbicacion.placeholder = "Ej. SA-01-1, SA-01-2, SA-01-3, SA-02-1";
+    inputUbicacion.placeholder = "SA-01-1, SA-01-2...";
   } else {
-    lblUbicacion.textContent = "📍 Ubicación en Tarimas (2 caracteres)";
+    lblUbicacion.textContent = "📍 Ubicación Tarimas (2 díg.)";
     inputUbicacion.maxLength = 2;
-    inputUbicacion.placeholder = "Ej. K1, K2, K3, L1";
+    inputUbicacion.placeholder = "K1, K2, K3, L1...";
     if (inputUbicacion.value.length > 2) {
       inputUbicacion.value = inputUbicacion.value.slice(0, 2);
     }
@@ -190,6 +366,7 @@ function updateCaptureModeUI() {
 
   renderQuickUbicaciones();
   updateCounters();
+  updateCameraTargetLabel();
 }
 
 function renderQuickUbicaciones() {
@@ -199,42 +376,44 @@ function renderQuickUbicaciones() {
     ? CONFIG.UBICACIONES_AUDITAR
     : CONFIG.UBICACIONES_TARIMAS;
 
+  const currentVal = document.getElementById("inputUbicacion").value.trim().toUpperCase();
+
   list.forEach(ub => {
     const chip = document.createElement("button");
     chip.type = "button";
-    chip.className = "chip";
+    chip.className = `chip ${currentVal === ub ? "selected" : ""}`;
     chip.textContent = ub;
     chip.addEventListener("click", () => {
       const inputUb = document.getElementById("inputUbicacion");
       inputUb.value = ub;
       updateCounters();
+      renderQuickUbicaciones();
       if (
         document.getElementById("chkAutoSubmit").checked &&
         isCaptureFormValid()
       ) {
         handleRegistrarSubmit(new Event("submit"));
       } else {
-        inputUb.focus();
+        // Si falta tienda o entrega, enfocar el campo pendiente
+        const t = document.getElementById("inputTienda").value.trim();
+        const e = document.getElementById("inputEntrega").value.trim();
+        if (t.length < 4) document.getElementById("inputTienda").focus();
+        else if (e.length < 8) document.getElementById("inputEntrega").focus();
       }
     });
     container.appendChild(chip);
   });
 }
 
-/**
- * Normaliza la ubicación mientras se escribe o escanea:
- * En modo AUDITAR (7 caracteres): si escanean "SA011" sin guiones, lo formatea a "SA-01-1".
- */
 function normalizeUbicacionInput(rawVal) {
   let val = String(rawVal || "").toUpperCase().trim();
   if (AppState.currentArea === "AUDITAR") {
-    // Si escriben o escanean p.ej. SA011 (2 letras + 2 dígitos + 1 dígito = 5 chars sin guiones)
+    // Si se escanea SA011 sin guiones, convierte a SA-01-1
     if (/^[A-Z]{2}\d{3}$/.test(val)) {
       val = `${val.slice(0, 2)}-${val.slice(2, 4)}-${val.slice(4, 5)}`;
     }
     return val.slice(0, 7);
   } else {
-    // Modo TARIMAS: 2 caracteres (K1, K2, L1, etc.)
     return val.replace(/[^A-Z0-9]/g, "").slice(0, 2);
   }
 }
@@ -247,17 +426,17 @@ function updateCounters() {
   const reqUbLen = AppState.currentArea === "AUDITAR" ? 7 : 2;
 
   const cTienda = document.getElementById("counterTienda");
-  cTienda.textContent = `${tienda.length} / 4 dígitos`;
+  cTienda.textContent = `${tienda.length}/4`;
   cTienda.classList.toggle("valid", /^\d{4}$/.test(tienda));
   document.getElementById("inputTienda").classList.toggle("input-valid", /^\d{4}$/.test(tienda));
 
   const cEntrega = document.getElementById("counterEntrega");
-  cEntrega.textContent = `${entrega.length} / 8 dígitos`;
+  cEntrega.textContent = `${entrega.length}/8`;
   cEntrega.classList.toggle("valid", /^\d{8}$/.test(entrega));
   document.getElementById("inputEntrega").classList.toggle("input-valid", /^\d{8}$/.test(entrega));
 
   const cUb = document.getElementById("counterUbicacion");
-  cUb.textContent = `${ubicacion.length} / ${reqUbLen} caracteres`;
+  cUb.textContent = `${ubicacion.length}/${reqUbLen}`;
   cUb.classList.toggle("valid", ubicacion.length === reqUbLen);
   document.getElementById("inputUbicacion").classList.toggle("input-valid", ubicacion.length === reqUbLen);
 }
@@ -286,21 +465,21 @@ async function handleRegistrarSubmit(e) {
   const reqUbLen = AppState.currentArea === "AUDITAR" ? 7 : 2;
 
   if (!/^\d{4}$/.test(tienda)) {
-    playScannerBeep(false);
-    showToast("La Tienda debe tener exactamente 4 dígitos (ej. 7101).", "error");
+    playScannerFeedback(false);
+    showToast("La Tienda debe tener 4 dígitos (ej. 7101).", "error");
     document.getElementById("inputTienda").focus();
     return;
   }
   if (!/^\d{8}$/.test(entrega)) {
-    playScannerBeep(false);
-    showToast("La Entrega / Grupo debe tener exactamente 8 dígitos.", "error");
+    playScannerFeedback(false);
+    showToast("La Entrega / Grupo debe tener 8 dígitos.", "error");
     document.getElementById("inputEntrega").focus();
     return;
   }
   if (ubicacion.length !== reqUbLen) {
-    playScannerBeep(false);
+    playScannerFeedback(false);
     const ej = AppState.currentArea === "AUDITAR" ? "SA-01-1 (7 caracteres)" : "K1, L1 (2 caracteres)";
-    showToast(`La Ubicación debe tener ${reqUbLen} caracteres. Ejemplo: ${ej}`, "error");
+    showToast(`Ubicación inválida. Debe ser de ${reqUbLen} caracteres (${ej}).`, "error");
     document.getElementById("inputUbicacion").focus();
     return;
   }
@@ -309,7 +488,7 @@ async function handleRegistrarSubmit(e) {
   const btn = document.getElementById("btnGuardarMovimiento");
   const prevText = btn.textContent;
   btn.disabled = true;
-  btn.textContent = "⏳ Guardando registro...";
+  btn.textContent = "⏳ Guardando...";
 
   try {
     const res = await API.registrarMovimiento({
@@ -325,25 +504,23 @@ async function handleRegistrarSubmit(e) {
     });
 
     if (res.success) {
-      playScannerBeep(true);
+      playScannerFeedback(true);
       showToast(`✅ ${res.message}`, "success");
 
-      // Mostrar banner de última captura
       const banner = document.getElementById("lastScanBanner");
       const details = document.getElementById("lastScanDetails");
       banner.classList.remove("hidden");
-      details.textContent = `${AppState.currentTipo} | ${AppState.currentArea} | Tienda: ${tienda} | Grupo: ${entrega} ➔ Ubicación: ${ubicacion} (${res.movimiento.fechaHora})`;
+      details.textContent = `${AppState.currentTipo} • ${AppState.currentArea} | Tienda ${tienda} | Grupo ${entrega} ➔ ${ubicacion}`;
 
-      // Limpiar para siguiente escaneo inmediato
       limpiarFormularioCaptura();
       await loadMovimientosRecientes();
     } else {
-      playScannerBeep(false);
-      showToast(res.message || "Error al guardar el movimiento", "error");
+      playScannerFeedback(false);
+      showToast(res.message || "Error al guardar", "error");
     }
   } catch (err) {
-    playScannerBeep(false);
-    showToast("Error de red al conectar con Google Sheets: " + err.message, "error");
+    playScannerFeedback(false);
+    showToast("Error de conexión: " + err.message, "error");
   } finally {
     AppState.isSubmitting = false;
     btn.disabled = false;
@@ -357,7 +534,33 @@ function limpiarFormularioCaptura() {
   document.getElementById("inputUbicacion").value = "";
   document.getElementById("inputObservaciones").value = "";
   updateCounters();
+  renderQuickUbicaciones();
+  updateCameraTargetLabel();
   document.getElementById("inputTienda").focus();
+}
+
+function buildMovMobileCardHtml(m) {
+  const pillMov = m.tipoMovimiento === "ENTRADA" ? "pill-entrada" : "pill-salida";
+  const pillArea = m.area === "AUDITAR" ? "pill-auditar" : "pill-tarimas";
+  return `
+    <div class="mov-mobile-card">
+      <div class="mov-mobile-top">
+        <div style="display:flex; gap:0.35rem; align-items:center;">
+          <span class="pill ${pillArea}">${escapeHtml(m.area)}</span>
+          <span class="pill ${pillMov}">${escapeHtml(m.tipoMovimiento)}</span>
+        </div>
+        <span style="font-family:monospace; font-size:0.74rem; color:var(--text-muted);">${escapeHtml(m.fechaHora)}</span>
+      </div>
+      <div class="mov-mobile-mid">
+        <span>🏬 Tda: <strong>${escapeHtml(m.tienda)}</strong> • 📦 Grp: <span style="color:#60a5fa;">${escapeHtml(m.entrega)}</span></span>
+        <span style="font-size:1rem; color:#38bdf8;">📍 ${escapeHtml(m.ubicacion)}</span>
+      </div>
+      <div class="mov-mobile-bot">
+        <span>👷 ${escapeHtml(m.usuario)}</span>
+        <span>${escapeHtml(m.observaciones || "")}</span>
+      </div>
+    </div>
+  `;
 }
 
 async function loadMovimientosRecientes() {
@@ -365,28 +568,20 @@ async function loadMovimientosRecientes() {
     const res = await API.buscarGrupo("", "", "TODAS");
     if (!res.success) return;
 
-    const tbody = document.getElementById("tbodyRecientes");
     const rec = (res.historial || []).slice(0, 25);
+    const listMobile = document.getElementById("listaRecientesMobile");
+    const listDesktop = document.getElementById("listaRecientesDesktop");
 
     if (rec.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:1.5rem;">Aún no hay movimientos registrados.</td></tr>`;
+      const emptyHtml = `<div style="text-align:center; color:var(--text-muted); padding:1.5rem; font-size:0.84rem;">Aún no hay movimientos registrados.</div>`;
+      if (listMobile) listMobile.innerHTML = emptyHtml;
+      if (listDesktop) listDesktop.innerHTML = emptyHtml;
       return;
     }
 
-    tbody.innerHTML = rec.map(m => {
-      const pillMov = m.tipoMovimiento === "ENTRADA" ? "pill-entrada" : "pill-salida";
-      const pillArea = m.area === "AUDITAR" ? "pill-auditar" : "pill-tarimas";
-      return `
-        <tr>
-          <td style="font-family:monospace; font-size:0.78rem;">${escapeHtml(m.fechaHora)}</td>
-          <td><span class="pill ${pillArea}">${escapeHtml(m.area)}</span></td>
-          <td><span class="pill ${pillMov}">${escapeHtml(m.tipoMovimiento)}</span></td>
-          <td style="font-family:monospace; font-weight:700;">${escapeHtml(m.tienda)}</td>
-          <td style="font-family:monospace; font-weight:700; color:#60a5fa;">${escapeHtml(m.entrega)}</td>
-          <td style="font-family:monospace; font-weight:800;">${escapeHtml(m.ubicacion)}</td>
-        </tr>
-      `;
-    }).join("");
+    const cardsHtml = rec.map(buildMovMobileCardHtml).join("");
+    if (listMobile) listMobile.innerHTML = cardsHtml;
+    if (listDesktop) listDesktop.innerHTML = cardsHtml;
   } catch (e) {
     console.error(e);
   }
@@ -404,29 +599,28 @@ async function ejecutarBusquedaGrupo(e) {
 
   const containerGrupos = document.getElementById("resultadosGruposContainer");
   const tbodyHistorial = document.getElementById("tbodyHistorial");
+  const mobileCards = document.getElementById("historialMobileCards");
 
-  containerGrupos.innerHTML = `<div class="card" style="margin-bottom:1rem; color:var(--text-muted);">Consultando información...</div>`;
+  containerGrupos.innerHTML = `<div class="card" style="margin-bottom:0.85rem; color:var(--text-muted); font-size:0.85rem;">Consultando grupo...</div>`;
 
   try {
     const res = await API.buscarGrupo(qGrupo, qTienda, qArea);
     if (!res.success) {
-      showToast(res.message || "No se pudo realizar la búsqueda", "error");
+      showToast(res.message || "Error en la búsqueda", "error");
       return;
     }
 
     AppState.lastHistorial = res.historial || [];
-    document.getElementById("lblTotalHistorial").textContent = `${AppState.lastHistorial.length} movimientos`;
+    document.getElementById("lblTotalHistorial").textContent = `${AppState.lastHistorial.length} movs`;
 
-    // Renderizar Tarjetas Resumen de cada Grupo encontrado
     const grupos = res.grupos || [];
     if (grupos.length === 0) {
       containerGrupos.innerHTML = `
-        <div class="card" style="margin-bottom:1.25rem; text-align:center; color:var(--text-muted);">
-          No se encontró ningún grupo con el criterio <strong>${escapeHtml(qGrupo || "actual")}</strong>.
+        <div class="card" style="margin-bottom:1rem; text-align:center; color:var(--text-muted); font-size:0.85rem;">
+          No se encontró ningún grupo con <strong>${escapeHtml(qGrupo || "ese criterio")}</strong>.
         </div>
       `;
     } else {
-      // Si no hay filtro escrito, mostrar los primeros 6 grupos más recientes para no saturar, o todos si hay búsqueda
       const mostrarGrupos = qGrupo || qTienda ? grupos : grupos.slice(0, 6);
       containerGrupos.innerHTML = mostrarGrupos.map(g => {
         const enUbicacion = g.ultimoMovimiento === "ENTRADA";
@@ -437,11 +631,11 @@ async function ejecutarBusquedaGrupo(e) {
           <div class="grupo-result-card">
             <div class="grupo-header">
               <div>
-                <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Grupo / Entrega (8 dígitos)</span>
+                <div style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:800;">Número de Grupo / Entrega</div>
                 <div class="grupo-number">📦 ${escapeHtml(g.entrega)}</div>
               </div>
-              <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                <span class="pill ${areaClass}">ÁREA: ${escapeHtml(g.areaActual)}</span>
+              <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                <span class="pill ${areaClass}">${escapeHtml(g.areaActual)}</span>
                 <span class="pill ${badgeClass}">${escapeHtml(g.estadoActual)}</span>
               </div>
             </div>
@@ -449,10 +643,10 @@ async function ejecutarBusquedaGrupo(e) {
             <div class="grupo-details-grid">
               <div class="detail-box">
                 <div class="detail-label">📍 Ubicación Actual / Última</div>
-                <div class="detail-value" style="font-family:monospace; font-size:1.2rem; color:#38bdf8;">
+                <div class="detail-value" style="font-family:monospace; font-size:1.15rem; color:#38bdf8;">
                   ${escapeHtml(g.ubicacionActual || "—")}
                 </div>
-                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.15rem;">
+                <div style="font-size:0.74rem; color:var(--text-muted); margin-top:0.1rem;">
                   Tienda: <strong>${escapeHtml(g.tienda)}</strong>
                 </div>
               </div>
@@ -460,22 +654,22 @@ async function ejecutarBusquedaGrupo(e) {
               <div class="detail-box">
                 <div class="detail-label">📥 Fecha y Hora de ENTRADA</div>
                 <div class="detail-value" style="color:#6ee7b7; font-family:monospace;">
-                  ${escapeHtml(g.fechaHoraEntrada || "Sin registro de entrada")}
+                  ${escapeHtml(g.fechaHoraEntrada || "Sin entrada")}
                 </div>
-                <div style="font-size:0.74rem; color:var(--text-muted); margin-top:0.15rem;">
-                  ${g.ubicacionEntrada ? `Ubicación: <strong>${escapeHtml(g.ubicacionEntrada)}</strong> • ` : ""}
-                  ${g.usuarioEntrada ? `Por: ${escapeHtml(g.usuarioEntrada)}` : ""}
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.1rem;">
+                  ${g.ubicacionEntrada ? `Ubic: <strong>${escapeHtml(g.ubicacionEntrada)}</strong> • ` : ""}
+                  ${g.usuarioEntrada ? `${escapeHtml(g.usuarioEntrada)}` : ""}
                 </div>
               </div>
 
               <div class="detail-box">
                 <div class="detail-label">📤 Fecha y Hora de SALIDA</div>
                 <div class="detail-value" style="color:#fde68a; font-family:monospace;">
-                  ${escapeHtml(g.fechaHoraSalida || "Aún en ubicación (Sin salida)")}
+                  ${escapeHtml(g.fechaHoraSalida || "Sigue en ubicación")}
                 </div>
-                <div style="font-size:0.74rem; color:var(--text-muted); margin-top:0.15rem;">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.1rem;">
                   ${g.ubicacionSalida ? `Salió de: <strong>${escapeHtml(g.ubicacionSalida)}</strong> • ` : ""}
-                  ${g.usuarioSalida ? `Por: ${escapeHtml(g.usuarioSalida)}` : ""}
+                  ${g.usuarioSalida ? `${escapeHtml(g.usuarioSalida)}` : ""}
                 </div>
               </div>
             </div>
@@ -484,10 +678,12 @@ async function ejecutarBusquedaGrupo(e) {
       }).join("");
     }
 
-    // Renderizar tabla completa de movimientos
+    // Historial en tarjetas móviles y tabla escritorio
     if (AppState.lastHistorial.length === 0) {
-      tbodyHistorial.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:1.5rem;">Sin movimientos para mostrar.</td></tr>`;
+      mobileCards.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:1rem;">Sin movimientos.</div>`;
+      tbodyHistorial.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:1.2rem;">Sin movimientos.</td></tr>`;
     } else {
+      mobileCards.innerHTML = AppState.lastHistorial.map(buildMovMobileCardHtml).join("");
       tbodyHistorial.innerHTML = AppState.lastHistorial.map(m => {
         const pillMov = m.tipoMovimiento === "ENTRADA" ? "pill-entrada" : "pill-salida";
         const pillArea = m.area === "AUDITAR" ? "pill-auditar" : "pill-tarimas";
@@ -498,8 +694,8 @@ async function ejecutarBusquedaGrupo(e) {
             <td style="font-family:monospace; font-weight:700;">${escapeHtml(m.tienda)}</td>
             <td><span class="pill ${pillArea}">${escapeHtml(m.area)}</span></td>
             <td><span class="pill ${pillMov}">${escapeHtml(m.tipoMovimiento)}</span></td>
-            <td style="font-family:monospace; font-weight:800; font-size:0.95rem;">${escapeHtml(m.ubicacion)}</td>
-            <td>${escapeHtml(m.usuario)} <span style="color:var(--text-muted); font-size:0.76rem;">(${escapeHtml(m.nombreUsuario || "")})</span></td>
+            <td style="font-family:monospace; font-weight:800;">${escapeHtml(m.ubicacion)}</td>
+            <td>${escapeHtml(m.usuario)}</td>
             <td style="color:var(--text-muted);">${escapeHtml(m.observaciones || "—")}</td>
           </tr>
         `;
@@ -551,17 +747,17 @@ function exportarHistorialCSV() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `movimientos_grupos_entrega_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `grupos_entrega_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
 // ==========================================================================
-// GESTIÓN DE USUARIOS (SOLO ADMINISTRATIVO)
+// GESTIÓN DE USUARIOS (TARJETAS ADAPTADAS A CELULAR)
 // ==========================================================================
 async function cargarListaUsuarios() {
-  const tbody = document.getElementById("tbodyUsuarios");
-  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Cargando usuarios...</td></tr>`;
+  const container = document.getElementById("usuariosMobileList");
+  container.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:1rem;">Cargando usuarios...</div>`;
 
   try {
     const res = await API.getUsuarios();
@@ -571,28 +767,29 @@ async function cargarListaUsuarios() {
     }
 
     const list = res.usuarios || [];
-    tbody.innerHTML = list.map(u => {
+    container.innerHTML = list.map(u => {
       const isAdmin = String(u.rol).toLowerCase().includes("admin");
       const isActive = String(u.activo).toUpperCase() !== "NO";
       return `
-        <tr>
-          <td style="font-family:monospace; font-weight:700;">${escapeHtml(u.usuario)}</td>
-          <td>${escapeHtml(u.nombre)}</td>
-          <td style="font-family:monospace; color:var(--text-muted);">${escapeHtml(u.password || "••••")}</td>
-          <td><span class="role-tag ${isAdmin ? "admin" : "operativo"}">${isAdmin ? "Administrativo" : "Operativo"}</span></td>
-          <td>
-            <span class="pill ${isActive ? "pill-entrada" : "pill-salida"}">${isActive ? "ACTIVO" : "INACTIVO"}</span>
-          </td>
-          <td>
-            <button type="button" class="btn btn-outline btn-toggle-user" data-user="${escapeHtml(u.usuario)}" style="padding:0.25rem 0.6rem; font-size:0.75rem;">
+        <div class="mov-mobile-card">
+          <div class="mov-mobile-top">
+            <div>
+              <strong style="font-family:monospace; font-size:0.95rem;">${escapeHtml(u.usuario)}</strong>
+              <span style="color:var(--text-muted); font-size:0.8rem;"> • ${escapeHtml(u.nombre)}</span>
+            </div>
+            <span class="role-tag ${isAdmin ? "admin" : "operativo"}">${isAdmin ? "Administrativo" : "Operativo"}</span>
+          </div>
+          <div class="mov-mobile-bot" style="margin-top:0.25rem;">
+            <span>🔑 PIN: <code>${escapeHtml(u.password || "****")}</code> • Estado: <strong>${isActive ? "ACTIVO" : "INACTIVO"}</strong></span>
+            <button type="button" class="btn btn-outline btn-sm btn-toggle-user" data-user="${escapeHtml(u.usuario)}">
               ${isActive ? "Desactivar" : "Activar"}
             </button>
-          </td>
-        </tr>
+          </div>
+        </div>
       `;
     }).join("");
 
-    tbody.querySelectorAll(".btn-toggle-user").forEach(btn => {
+    container.querySelectorAll(".btn-toggle-user").forEach(btn => {
       btn.addEventListener("click", async () => {
         const target = btn.dataset.user;
         const r = await API.toggleUsuario(target);
@@ -600,7 +797,7 @@ async function cargarListaUsuarios() {
           showToast(r.message, "success");
           cargarListaUsuarios();
         } else {
-          showToast(r.message || "No se pudo actualizar el usuario", "error");
+          showToast(r.message || "Error al actualizar", "error");
         }
       });
     });
@@ -617,7 +814,7 @@ async function handleCrearUsuarioSubmit(e) {
   const rol = document.getElementById("newUserRole").value;
 
   if (!usuario || !nombre) {
-    showToast("Completa el ID de usuario y el nombre.", "error");
+    showToast("Completa el usuario y el nombre.", "error");
     return;
   }
 
@@ -631,21 +828,23 @@ async function handleCrearUsuarioSubmit(e) {
     });
 
     if (res.success) {
+      playScannerFeedback(true);
       showToast(res.message, "success");
       document.getElementById("newUserId").value = "";
       document.getElementById("newUserName").value = "";
       document.getElementById("newUserPass").value = "1234";
       cargarListaUsuarios();
     } else {
+      playScannerFeedback(false);
       showToast(res.message || "Error al crear usuario", "error");
     }
   } catch (err) {
-    showToast("Error al crear usuario: " + err.message, "error");
+    showToast("Error: " + err.message, "error");
   }
 }
 
 // ==========================================================================
-// EVENTOS Y AUTO-AVANCE DEL ESCÁNER
+// EVENTOS Y AUTO-AVANCE DEL ESCÁNER EN CELULAR
 // ==========================================================================
 function bindEvents() {
   // Login
@@ -655,33 +854,43 @@ function bindEvents() {
     const p = document.getElementById("loginPass").value.trim();
     const res = await API.login(u, p);
     if (res.success) {
-      showToast(`Bienvenido, ${res.user.nombre} (${res.user.rol})`, "success");
+      playScannerFeedback(true);
+      showToast(`Hola, ${res.user.nombre}`, "success");
       setLoggedUser(res.user);
     } else {
-      playScannerBeep(false);
-      showToast(res.message || "Credenciales inválidas", "error");
+      playScannerFeedback(false);
+      showToast(res.message || "Credenciales incorrectas", "error");
     }
   });
 
   document.getElementById("btnQuickOperativo").addEventListener("click", async () => {
-    document.getElementById("loginUser").value = "operativo";
-    document.getElementById("loginPass").value = "1234";
     const res = await API.login("operativo", "1234");
     if (res.success) setLoggedUser(res.user);
   });
 
   document.getElementById("btnQuickAdmin").addEventListener("click", async () => {
-    document.getElementById("loginUser").value = "admin";
-    document.getElementById("loginPass").value = "1234";
     const res = await API.login("admin", "1234");
     if (res.success) setLoggedUser(res.user);
   });
 
   document.getElementById("btnLogout").addEventListener("click", logout);
 
-  // Navegación de pestañas
+  // Pestañas inferiores
   document.querySelectorAll(".nav-tab").forEach(btn => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+
+  // Cámara y Teclado Virtual en Celular
+  document.getElementById("btnOpenCameraScanner").addEventListener("click", () => {
+    if (AppState.cameraActive) stopCameraScanner();
+    else startCameraScanner("CAPTURA");
+  });
+
+  document.getElementById("btnCloseCamera").addEventListener("click", stopCameraScanner);
+  document.getElementById("btnToggleVirtualKeyboard").addEventListener("click", toggleVirtualKeyboard);
+
+  document.getElementById("btnScanSearchGrupo").addEventListener("click", () => {
+    startCameraScanner("BUSCAR");
   });
 
   // Selectores de Área (AUDITAR vs TARIMAS) y Movimiento (ENTRADA vs SALIDA)
@@ -709,7 +918,7 @@ function bindEvents() {
     document.getElementById("inputTienda").focus();
   });
 
-  // Inputs de escáner con salto automático al completar longitud
+  // Inputs de escáner con auto-avance
   const inputTienda = document.getElementById("inputTienda");
   const inputEntrega = document.getElementById("inputEntrega");
   const inputUbicacion = document.getElementById("inputUbicacion");
@@ -717,6 +926,7 @@ function bindEvents() {
   inputTienda.addEventListener("input", () => {
     inputTienda.value = inputTienda.value.replace(/\D/g, "").slice(0, 4);
     updateCounters();
+    updateCameraTargetLabel();
     if (inputTienda.value.length === 4) {
       inputEntrega.focus();
       inputEntrega.select();
@@ -733,6 +943,7 @@ function bindEvents() {
   inputEntrega.addEventListener("input", () => {
     inputEntrega.value = inputEntrega.value.replace(/\D/g, "").slice(0, 8);
     updateCounters();
+    updateCameraTargetLabel();
     if (inputEntrega.value.length === 8) {
       inputUbicacion.focus();
       inputUbicacion.select();
@@ -749,6 +960,7 @@ function bindEvents() {
   inputUbicacion.addEventListener("input", () => {
     inputUbicacion.value = normalizeUbicacionInput(inputUbicacion.value);
     updateCounters();
+    renderQuickUbicaciones();
     const reqLen = AppState.currentArea === "AUDITAR" ? 7 : 2;
     if (
       inputUbicacion.value.length === reqLen &&
@@ -762,10 +974,18 @@ function bindEvents() {
   document.getElementById("formCaptura").addEventListener("submit", handleRegistrarSubmit);
   document.getElementById("btnLimpiarCampos").addEventListener("click", limpiarFormularioCaptura);
   document.getElementById("btnRefreshRecientes").addEventListener("click", loadMovimientosRecientes);
+  const btnRefDesk = document.getElementById("btnRefreshRecientesDesktop");
+  if (btnRefDesk) btnRefDesk.addEventListener("click", loadMovimientosRecientes);
 
   // Buscador de grupos (Administrativo)
   document.getElementById("formBuscarGrupo").addEventListener("submit", ejecutarBusquedaGrupo);
   document.getElementById("searchAreaSelect").addEventListener("change", ejecutarBusquedaGrupo);
+  document.getElementById("btnLimpiarBusqueda").addEventListener("click", () => {
+    document.getElementById("searchGrupoInput").value = "";
+    document.getElementById("searchTiendaInput").value = "";
+    document.getElementById("searchAreaSelect").value = "TODAS";
+    ejecutarBusquedaGrupo();
+  });
   document.getElementById("btnExportarCSV").addEventListener("click", exportarHistorialCSV);
 
   // Gestión de usuarios (Administrativo)
@@ -788,7 +1008,7 @@ function bindEvents() {
 
     updateConnectionBadge();
     closeConfigModal();
-    showToast("Configuración guardada correctamente.", "success");
+    showToast("Configuración guardada.", "success");
     if (AppState.currentUser) {
       loadMovimientosRecientes();
     }

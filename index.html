@@ -2,40 +2,45 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Control de Grupos de Entrega y Auditoría | Google Sheets</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Control de Grupos de Entrega y Auditoría | Móvil</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <!-- Librería ligera para escaneo de códigos de barras con la cámara del celular -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 
-  <!-- BARRA SUPERIOR -->
+  <!-- BARRA SUPERIOR COMPACTA PARA CELULAR -->
   <header class="topbar">
     <div class="brand">
       <div class="brand-icon">📦</div>
-      <div>
-        <div class="brand-title">Control de Grupos de Entrega y Auditoría</div>
-        <div class="brand-sub">Base de datos Alto Costo • Escáner de Almacén</div>
+      <div class="brand-text-wrap">
+        <div class="brand-title">Grupos Entrega y Auditoría</div>
+        <div class="brand-sub">Base Alto Costo • Modo Celular</div>
       </div>
     </div>
 
     <div class="topbar-actions">
-      <button id="btnConnectionStatus" class="badge-status demo" type="button" title="Configurar conexión con Google Sheets">
+      <button id="btnConnectionStatus" class="badge-status demo" type="button" title="Configurar Google Sheets">
         <span id="statusDot">●</span>
-        <span id="statusText">Modo Demo</span>
+        <span id="statusText">Demo</span>
         <span>⚙️</span>
       </button>
 
-      <a id="linkGoogleSheet" href="https://docs.google.com/spreadsheets/d/1GuqbZE-nPD_uqIXMPwxYT-LfBmhj_1L5bC8uXChcczg/edit" target="_blank" rel="noopener" class="btn btn-outline" style="padding: 0.38rem 0.75rem; font-size: 0.78rem;">
-        📊 Abrir Google Sheet
+      <a id="linkGoogleSheet" href="https://docs.google.com/spreadsheets/d/1GuqbZE-nPD_uqIXMPwxYT-LfBmhj_1L5bC8uXChcczg/edit" target="_blank" rel="noopener" class="btn btn-outline btn-icon-top" title="Abrir Google Sheet">
+        📊 <span class="hide-xs">Sheet</span>
       </a>
 
       <div id="userHeaderInfo" class="user-pill hidden">
-        <span id="lblUserName">Usuario</span>
-        <span id="lblUserRole" class="role-tag operativo">Operativo</span>
-        <button id="btnLogout" class="btn btn-danger" style="padding: 0.2rem 0.55rem; font-size: 0.73rem; margin-left: 0.25rem;">Salir</button>
+        <span id="lblUserName" class="user-name-trunc">Usuario</span>
+        <span id="lblUserRole" class="role-tag operativo">OP</span>
+        <button id="btnLogout" class="btn btn-danger btn-logout-xs" type="button">Salir</button>
       </div>
     </div>
   </header>
@@ -43,12 +48,12 @@
   <main class="container">
 
     <!-- =================================================================== -->
-    <!-- VISTA 1: LOGIN                                                      -->
+    <!-- VISTA 1: LOGIN ADAPTADO A CELULAR                                   -->
     <!-- =================================================================== -->
     <section id="viewLogin" class="login-wrapper">
-      <div class="card">
-        <div class="card-title">🔐 Iniciar Sesión</div>
-        <p class="card-subtitle">Ingresa con tu cuenta Operativa o Administrativa para capturar o consultar grupos de entrega.</p>
+      <div class="card login-card">
+        <div class="card-title">🔐 Acceso al Sistema</div>
+        <p class="card-subtitle">Captura de Grupos de Entrega y Auditoría desde celular o escáner.</p>
 
         <form id="formLogin">
           <div class="form-group">
@@ -58,22 +63,22 @@
 
           <div class="form-group">
             <label class="form-label" for="loginPass">Contraseña / PIN</label>
-            <input id="loginPass" type="password" class="scanner-input" placeholder="••••" autocomplete="current-password" required />
+            <input id="loginPass" type="password" inputmode="numeric" class="scanner-input" placeholder="••••" autocomplete="current-password" required />
           </div>
 
-          <button id="btnSubmitLogin" type="submit" class="btn btn-primary btn-lg" style="margin-top: 0.5rem;">
+          <button id="btnSubmitLogin" type="submit" class="btn btn-primary btn-lg" style="margin-top: 0.35rem;">
             Entrar al Sistema
           </button>
         </form>
 
-        <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-          <div style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 0.5rem;">Acceso rápido de prueba (Clave: <code>1234</code>):</div>
-          <div style="display: flex; gap: 0.5rem;">
-            <button type="button" id="btnQuickOperativo" class="btn btn-outline" style="flex: 1; font-size: 0.8rem;">
-              👷 Entrar como Operativo
+        <div class="quick-login-box">
+          <div class="quick-login-title">Entrada rápida de prueba (PIN: <code>1234</code>):</div>
+          <div class="quick-login-grid">
+            <button type="button" id="btnQuickOperativo" class="btn btn-outline">
+              👷 Operativo
             </button>
-            <button type="button" id="btnQuickAdmin" class="btn btn-outline" style="flex: 1; font-size: 0.8rem;">
-              🛡️ Entrar como Administrativo
+            <button type="button" id="btnQuickAdmin" class="btn btn-outline">
+              🛡️ Admin
             </button>
           </div>
         </div>
@@ -85,261 +90,299 @@
     <!-- =================================================================== -->
     <section id="viewApp" class="hidden">
 
-      <!-- PESTAÑAS DE NAVEGACIÓN (Buscar y Usuarios visibles solo para Administrativo) -->
+      <!-- BARRA DE NAVEGACIÓN (En celular se fija abajo estilo App Nativa) -->
       <nav id="navTabs" class="nav-tabs">
         <button type="button" class="nav-tab active" data-tab="tabCaptura">
-          📡 Captura Escáner (Entrada / Salida)
+          <span class="nav-icon">📱</span>
+          <span class="nav-label">Capturar</span>
+        </button>
+        <button type="button" class="nav-tab" data-tab="tabRecientes">
+          <span class="nav-icon">🕒</span>
+          <span class="nav-label">Recientes</span>
         </button>
         <button type="button" id="tabBtnBuscar" class="nav-tab hidden" data-tab="tabBuscar">
-          🔍 Buscar Grupo / Ubicación y Fechas
+          <span class="nav-icon">🔍</span>
+          <span class="nav-label">Buscar Grupo</span>
         </button>
         <button type="button" id="tabBtnUsuarios" class="nav-tab hidden" data-tab="tabUsuarios">
-          👥 Crear y Administrar Usuarios
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">Usuarios</span>
         </button>
       </nav>
 
       <!-- ================================================================= -->
-      <!-- PESTAÑA A: CAPTURA DE ENTRADA Y SALIDA (OPERATIVO Y ADMIN)        -->
+      <!-- PESTAÑA 1: CAPTURA MÓVIL (ENTRADA Y SALIDA)                       -->
       <!-- ================================================================= -->
       <div id="tabCaptura" class="tab-pane">
         <div class="capture-grid">
 
-          <!-- Panel Izquierdo: Formulario para Escáner -->
-          <div class="card">
-            <div class="card-title">📡 Captura con Escáner</div>
-            <p class="card-subtitle">Selecciona el área y si el grupo entra o sale. El cursor avanza automáticamente al escanear cada código.</p>
+          <!-- Tarjeta Principal de Captura Móvil -->
+          <div class="card mobile-capture-card">
+
+            <!-- Barra de Herramientas Escáner Celular (Cámara + Bloqueo Teclado BT) -->
+            <div class="mobile-scanner-toolbar">
+              <button type="button" id="btnOpenCameraScanner" class="btn btn-camera">
+                📷 Escanear con Cámara
+              </button>
+              <button type="button" id="btnToggleVirtualKeyboard" class="btn btn-outline btn-kb-toggle" title="Ocultar o mostrar el teclado del celular al usar escáner Bluetooth">
+                ⌨️ Teclado: <span id="lblKbState">Activo</span>
+              </button>
+            </div>
+
+            <!-- Visor de Cámara Embebido (se abre al tocar Escanear con Cámara) -->
+            <div id="cameraScannerBox" class="camera-scanner-box hidden">
+              <div class="camera-header">
+                <span id="lblCameraTarget">📷 Escaneando: Tienda (4 dígitos)</span>
+                <button type="button" id="btnCloseCamera" class="btn btn-danger" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;">Cerrar ✕</button>
+              </div>
+              <div id="qrReader" class="qr-reader-viewport"></div>
+              <div class="camera-hint">Apunta el código de barras o QR al recuadro</div>
+            </div>
 
             <!-- 1. Selección de Área: PARA AUDITAR vs EN TARIMAS -->
-            <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.4rem;">
-              1. Selecciona Destino / Área:
-            </div>
+            <div class="section-mini-label">1. Área / Destino</div>
             <div class="selector-grid">
               <button type="button" id="btnModeAuditar" class="mode-btn active-auditar">
-                <span class="mode-title">🔍 PARA AUDITAR</span>
-                <span class="mode-desc">Ubicación 7 dígitos (SA-01-1)</span>
+                <span class="mode-title">🔍 AUDITAR</span>
+                <span class="mode-desc">7 díg. (SA-01-1)</span>
               </button>
               <button type="button" id="btnModeTarimas" class="mode-btn">
-                <span class="mode-title">📦 EN TARIMAS</span>
-                <span class="mode-desc">Ubicación 2 dígitos (K1, L1)</span>
+                <span class="mode-title">📦 TARIMAS</span>
+                <span class="mode-desc">2 díg. (K1, L1)</span>
               </button>
             </div>
 
-            <!-- 2. Selección de Tipo de Movimiento: ENTRADA vs SALIDA -->
-            <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.4rem;">
-              2. Tipo de Movimiento:
-            </div>
+            <!-- 2. Selección de Movimiento: ENTRADA vs SALIDA -->
+            <div class="section-mini-label">2. Movimiento</div>
             <div class="selector-grid">
               <button type="button" id="btnTipoEntrada" class="mode-btn active-entrada">
                 <span class="mode-title">📥 ENTRADA</span>
-                <span class="mode-desc">Ingresa a la ubicación</span>
+                <span class="mode-desc">Ingresa a ubicación</span>
               </button>
               <button type="button" id="btnTipoSalida" class="mode-btn">
                 <span class="mode-title">📤 SALIDA</span>
-                <span class="mode-desc">Sale de la ubicación</span>
+                <span class="mode-desc">Sale de ubicación</span>
               </button>
             </div>
 
-            <!-- 3. Campos de Escaneo -->
+            <!-- 3. Formulario Compacto para Pantalla de Celular -->
             <form id="formCaptura" autocomplete="off">
-              <!-- Tienda (4 dígitos) -->
-              <div class="form-group">
-                <label class="form-label" for="inputTienda">
-                  <span>🏬 Tienda (4 dígitos)</span>
-                  <span id="counterTienda" class="char-counter">0 / 4 dígitos</span>
-                </label>
-                <div class="scanner-input-wrap">
-                  <input
-                    id="inputTienda"
-                    type="text"
-                    inputmode="numeric"
-                    maxlength="4"
-                    class="scanner-input"
-                    placeholder="Escanea Tienda (ej. 7101)"
-                    required
-                  />
+
+              <!-- Fila combinada en móvil: Tienda (4 díg) + Entrega (8 díg) -->
+              <div class="mobile-two-cols">
+                <!-- Tienda (4 dígitos) -->
+                <div class="form-group">
+                  <label class="form-label" for="inputTienda">
+                    <span>🏬 Tienda</span>
+                    <span id="counterTienda" class="char-counter">0/4</span>
+                  </label>
+                  <div class="scanner-input-wrap">
+                    <input
+                      id="inputTienda"
+                      type="text"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
+                      maxlength="4"
+                      class="scanner-input"
+                      placeholder="4 díg (7101)"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <!-- Entrega / Grupo (8 dígitos) -->
+                <div class="form-group">
+                  <label class="form-label" for="inputEntrega">
+                    <span>📦 Entrega / Grupo</span>
+                    <span id="counterEntrega" class="char-counter">0/8</span>
+                  </label>
+                  <div class="scanner-input-wrap">
+                    <input
+                      id="inputEntrega"
+                      type="text"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
+                      maxlength="8"
+                      class="scanner-input"
+                      placeholder="8 dígitos"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
-              <!-- Entrega / Grupo (8 dígitos) -->
-              <div class="form-group">
-                <label class="form-label" for="inputEntrega">
-                  <span>📦 Entrega / Número de Grupo (8 dígitos)</span>
-                  <span id="counterEntrega" class="char-counter">0 / 8 dígitos</span>
-                </label>
-                <div class="scanner-input-wrap">
-                  <input
-                    id="inputEntrega"
-                    type="text"
-                    inputmode="numeric"
-                    maxlength="8"
-                    class="scanner-input"
-                    placeholder="Escanea Entrega (8 dígitos)"
-                    required
-                  />
-                </div>
-              </div>
-
-              <!-- Ubicación (7 dígitos en Auditar / 2 dígitos en Tarimas) -->
+              <!-- Ubicación (7 caracteres en Auditar / 2 caracteres en Tarimas) -->
               <div class="form-group">
                 <label class="form-label" for="inputUbicacion">
-                  <span id="lblUbicacionTitulo">📍 Ubicación Auditar (7 caracteres)</span>
-                  <span id="counterUbicacion" class="char-counter">0 / 7 caracteres</span>
+                  <span id="lblUbicacionTitulo">📍 Ubicación Auditar (7 díg.)</span>
+                  <span id="counterUbicacion" class="char-counter">0/7</span>
                 </label>
                 <div class="scanner-input-wrap">
                   <input
                     id="inputUbicacion"
                     type="text"
                     maxlength="7"
-                    class="scanner-input"
-                    placeholder="Ej. SA-01-1, SA-01-2, SA-02-1"
+                    class="scanner-input input-ubicacion-lg"
+                    placeholder="SA-01-1, SA-01-2..."
                     style="text-transform: uppercase;"
                     required
                   />
+                  <button type="button" id="btnLimpiarCampos" class="btn-clear-inline" title="Limpiar campos">
+                    🧹
+                  </button>
                 </div>
-                <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 0.4rem;">
-                  Selección rápida o escaneo directo:
+
+                <div class="chips-label-row">
+                  <span>Toca una ubicación rápida o escanéala:</span>
                 </div>
                 <div id="quickUbicaciones" class="quick-chips"></div>
               </div>
 
-              <!-- Observaciones opcionales -->
-              <div class="form-group">
-                <label class="form-label" for="inputObservaciones">
-                  <span>📝 Nota / Observación (Opcional)</span>
-                </label>
+              <!-- Observación colapsable o compacta para no ocupar pantalla en el celular -->
+              <div class="form-group compact-obs-group">
                 <input
                   id="inputObservaciones"
                   type="text"
-                  class="scanner-input"
-                  style="font-size: 0.92rem; font-weight: 500; padding: 0.65rem 0.9rem;"
-                  placeholder="Opcional..."
+                  class="scanner-input input-obs-sm"
+                  placeholder="📝 Nota opcional (toque para escribir)..."
                 />
               </div>
 
-              <!-- Opción de Auto-Envío para Escáner -->
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; padding: 0.65rem 0.85rem; background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                <label for="chkAutoSubmit" style="font-size: 0.82rem; display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                  <input id="chkAutoSubmit" type="checkbox" checked style="width: 17px; height: 17px; accent-color: var(--primary);" />
-                  <span>⚡ Guardar automáticamente al completar Ubicación con escáner</span>
+              <!-- Auto-Guardado al completar escaneo -->
+              <div class="auto-save-bar">
+                <label for="chkAutoSubmit" class="auto-save-label">
+                  <input id="chkAutoSubmit" type="checkbox" checked />
+                  <span>⚡ Auto-guardar al completar ubicación</span>
                 </label>
-                <button type="button" id="btnLimpiarCampos" class="btn btn-outline" style="padding: 0.3rem 0.65rem; font-size: 0.76rem;">
-                  Limpiar
-                </button>
               </div>
 
-              <button id="btnGuardarMovimiento" type="submit" class="btn btn-success btn-lg">
-                ✅ REGISTRAR ENTRADA EN AUDITAR
+              <button id="btnGuardarMovimiento" type="submit" class="btn btn-success btn-lg btn-submit-mobile">
+                📥 REGISTRAR ENTRADA EN AUDITAR
               </button>
             </form>
+
+            <!-- Confirmación instantánea de la última captura en la misma pantalla del celular -->
+            <div id="lastScanBanner" class="last-scan-banner hidden">
+              <div class="last-scan-title">✅ ÚLTIMO REGISTRO GUARDADO</div>
+              <div id="lastScanDetails" class="last-scan-body"></div>
+            </div>
           </div>
 
-          <!-- Panel Derecho: Últimas Capturas y Resumen Rápido -->
-          <div class="card">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+          <!-- Panel Derecho (Visible en PC/Tablet al lado, o en la pestaña "Recientes" en Celular) -->
+          <div class="card desktop-only-recientes">
+            <div class="recientes-header">
               <div>
-                <div class="card-title" style="margin-bottom: 0.1rem;">🕒 Últimos Movimientos Registrados</div>
-                <div style="font-size: 0.78rem; color: var(--text-muted);">Confirmación en tiempo real de tus escaneos</div>
+                <div class="card-title" style="margin-bottom: 0.1rem;">🕒 Capturas Recientes</div>
+                <div style="font-size: 0.76rem; color: var(--text-muted);">Sincronizadas en vivo</div>
               </div>
-              <button type="button" id="btnRefreshRecientes" class="btn btn-outline" style="padding: 0.4rem 0.7rem; font-size: 0.78rem;">
-                🔄 Actualizar
+              <button type="button" id="btnRefreshRecientesDesktop" class="btn btn-outline btn-sm">
+                🔄
               </button>
             </div>
-
-            <!-- Tarjeta del último escaneo exitoso -->
-            <div id="lastScanBanner" class="grupo-result-card hidden" style="border-color: var(--entrada-color); background: rgba(16, 185, 129, 0.08);">
-              <div style="font-size: 0.74rem; text-transform: uppercase; color: #6ee7b7; font-weight: 700;">Última Captura Exitosa</div>
-              <div id="lastScanDetails" style="font-family: monospace; font-size: 0.95rem; font-weight: 700; margin-top: 0.25rem;"></div>
-            </div>
-
-            <div class="table-responsive" style="max-height: 490px; overflow-y: auto;">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Fecha / Hora</th>
-                    <th>Área</th>
-                    <th>Mov.</th>
-                    <th>Tienda</th>
-                    <th>Grupo (Entrega)</th>
-                    <th>Ubicación</th>
-                  </tr>
-                </thead>
-                <tbody id="tbodyRecientes">
-                  <tr>
-                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
-                      Sin capturas recientes
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <div id="listaRecientesDesktop" class="mobile-cards-list"></div>
           </div>
 
         </div>
       </div>
 
       <!-- ================================================================= -->
-      <!-- PESTAÑA B: BUSCAR GRUPO DE ENTREGA (SOLO ADMINISTRATIVO)          -->
+      <!-- PESTAÑA 2: RECIENTES (VISTA DEDICADA EN CELULAR)                  -->
+      <!-- ================================================================= -->
+      <div id="tabRecientes" class="tab-pane hidden">
+        <div class="card">
+          <div class="recientes-header">
+            <div>
+              <div class="card-title" style="margin-bottom: 0.1rem;">🕒 Últimos Movimientos</div>
+              <div style="font-size: 0.78rem; color: var(--text-muted);">Tus entradas y salidas registradas</div>
+            </div>
+            <button type="button" id="btnRefreshRecientes" class="btn btn-outline btn-sm">
+              🔄 Actualizar
+            </button>
+          </div>
+
+          <div id="listaRecientesMobile" class="mobile-cards-list"></div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 3: BUSCAR GRUPO DE ENTREGA (SOLO ADMINISTRATIVO)          -->
       <!-- ================================================================= -->
       <div id="tabBuscar" class="tab-pane hidden">
-        <div class="card" style="margin-bottom: 1.25rem;">
-          <div class="card-title">🔍 Buscador de Grupos de Entrega y Auditoría</div>
+        <div class="card" style="margin-bottom: 1rem;">
+          <div class="card-title">🔍 Buscar Grupo de Entrega</div>
           <p class="card-subtitle">
-            Ingresa o escanea el <strong>Número de Grupo / Entrega (8 dígitos)</strong> para consultar en qué ubicación está y la fecha/hora exacta en que entró o salió.
+            Ingresa o escanea el <strong>Número de Grupo / Entrega (8 dígitos)</strong> para ver su ubicación actual y la fecha en que entró o salió.
           </p>
 
           <form id="formBuscarGrupo" class="search-bar-grid">
             <div>
-              <label class="form-label" for="searchGrupoInput">Número de Grupo / Entrega (8 dígitos) o Ubicación</label>
-              <input
-                id="searchGrupoInput"
-                type="text"
-                class="scanner-input"
-                placeholder="Escanea o escribe el No. de Grupo (ej. 80123456)"
-              />
+              <label class="form-label" for="searchGrupoInput">No. de Grupo / Entrega (8 dígitos) o Ubicación</label>
+              <div style="display: flex; gap: 0.4rem;">
+                <input
+                  id="searchGrupoInput"
+                  type="text"
+                  inputmode="numeric"
+                  class="scanner-input"
+                  placeholder="Ej. 80123456"
+                />
+                <button type="button" id="btnScanSearchGrupo" class="btn btn-camera" style="padding: 0 0.85rem;" title="Escanear grupo con cámara">
+                  📷
+                </button>
+              </div>
             </div>
 
-            <div>
-              <label class="form-label" for="searchTiendaInput">Filtrar Tienda (4 díg.)</label>
-              <input
-                id="searchTiendaInput"
-                type="text"
-                maxlength="4"
-                class="scanner-input"
-                placeholder="Todas (ej. 7101)"
-              />
-            </div>
+            <div class="mobile-two-cols" style="margin-bottom: 0;">
+              <div>
+                <label class="form-label" for="searchTiendaInput">Tienda (4 díg.)</label>
+                <input
+                  id="searchTiendaInput"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="4"
+                  class="scanner-input"
+                  placeholder="Todas"
+                />
+              </div>
 
-            <div>
-              <label class="form-label" for="searchAreaSelect">Área</label>
-              <select id="searchAreaSelect" class="scanner-input" style="font-family: inherit;">
-                <option value="TODAS">Todas (Auditar y Tarimas)</option>
-                <option value="AUDITAR">Solo Para Auditar</option>
-                <option value="TARIMAS">Solo En Tarimas</option>
-              </select>
+              <div>
+                <label class="form-label" for="searchAreaSelect">Área</label>
+                <select id="searchAreaSelect" class="scanner-input" style="font-family: inherit;">
+                  <option value="TODAS">Todas</option>
+                  <option value="AUDITAR">Auditar</option>
+                  <option value="TARIMAS">Tarimas</option>
+                </select>
+              </div>
             </div>
 
             <div style="display: flex; gap: 0.5rem;">
-              <button type="submit" class="btn btn-primary" style="padding: 0.9rem 1.25rem;">
-                🔍 Buscar
+              <button type="submit" class="btn btn-primary" style="flex: 1; padding: 0.85rem;">
+                🔍 Buscar Grupo
               </button>
-              <button type="button" id="btnExportarCSV" class="btn btn-outline" style="padding: 0.9rem 1rem;" title="Descargar en Excel / CSV">
+              <button type="button" id="btnLimpiarBusqueda" class="btn btn-outline" style="padding: 0.85rem;">
+                Limpiar
+              </button>
+              <button type="button" id="btnExportarCSV" class="btn btn-outline" style="padding: 0.85rem;" title="Exportar a CSV / Excel">
                 📥 CSV
               </button>
             </div>
           </form>
         </div>
 
-        <!-- Resultado Destacado por Grupo (Ubicación, Fecha Entrada, Fecha Salida) -->
+        <!-- Tarjetas de Ubicación, Fecha de Entrada y Fecha de Salida por Grupo -->
         <div id="resultadosGruposContainer"></div>
 
-        <!-- Bitácora Detallada de Movimientos -->
+        <!-- Bitácora Detallada (Adaptada a tarjetas en móvil y tabla en PC) -->
         <div class="card">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
-            <div class="card-title" style="margin-bottom: 0;">📋 Historial Detallado de Entradas y Salidas</div>
+            <div class="card-title" style="margin-bottom: 0;">📋 Historial de Movimientos</div>
             <span id="lblTotalHistorial" class="char-counter">0 registros</span>
           </div>
 
-          <div class="table-responsive">
+          <!-- Vista Tarjetas Móvil del Historial -->
+          <div id="historialMobileCards" class="mobile-cards-list show-mobile-only"></div>
+
+          <!-- Vista Tabla Escritorio -->
+          <div class="table-responsive hide-mobile-only">
             <table>
               <thead>
                 <tr>
@@ -353,20 +396,14 @@
                   <th>Observaciones</th>
                 </tr>
               </thead>
-              <tbody id="tbodyHistorial">
-                <tr>
-                  <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
-                    Realiza una búsqueda para ver los movimientos.
-                  </td>
-                </tr>
-              </tbody>
+              <tbody id="tbodyHistorial"></tbody>
             </table>
           </div>
         </div>
       </div>
 
       <!-- ================================================================= -->
-      <!-- PESTAÑA C: GESTIÓN DE USUARIOS (SOLO ADMINISTRATIVO)              -->
+      <!-- PESTAÑA 4: GESTIÓN DE USUARIOS (SOLO ADMINISTRATIVO)              -->
       <!-- ================================================================= -->
       <div id="tabUsuarios" class="tab-pane hidden">
         <div class="capture-grid">
@@ -375,66 +412,54 @@
           <div class="card">
             <div class="card-title">👤 Crear Nuevo Usuario</div>
             <p class="card-subtitle">
-              Registra cuentas para el personal <strong>Operativo</strong> (solo entradas y salidas) o <strong>Administrativo</strong> (entradas, salidas, buscador de grupos y creación de usuarios).
+              Da de alta cuentas <strong>Operativas</strong> (solo entradas y salidas) o <strong>Administrativas</strong> (entradas, salidas, buscador y usuarios).
             </p>
 
             <form id="formCrearUsuario">
               <div class="form-group">
-                <label class="form-label" for="newUserId">Usuario (ID de acceso)</label>
-                <input id="newUserId" type="text" class="scanner-input" placeholder="Ej. op_juan o admin2" required />
+                <label class="form-label" for="newUserId">Usuario (ID para iniciar sesión)</label>
+                <input id="newUserId" type="text" class="scanner-input" placeholder="Ej. op_carlos" required />
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="newUserName">Nombre Completo</label>
-                <input id="newUserName" type="text" class="scanner-input" placeholder="Ej. Juan Pérez" style="font-family: inherit;" required />
+                <input id="newUserName" type="text" class="scanner-input" placeholder="Ej. Carlos Hernández" style="font-family: inherit;" required />
               </div>
 
-              <div class="form-group">
-                <label class="form-label" for="newUserPass">Contraseña o PIN</label>
-                <input id="newUserPass" type="text" class="scanner-input" placeholder="Ej. 1234" value="1234" required />
-              </div>
+              <div class="mobile-two-cols">
+                <div class="form-group">
+                  <label class="form-label" for="newUserPass">PIN / Clave</label>
+                  <input id="newUserPass" type="text" inputmode="numeric" class="scanner-input" placeholder="1234" value="1234" required />
+                </div>
 
-              <div class="form-group">
-                <label class="form-label" for="newUserRole">Rol del Usuario</label>
-                <select id="newUserRole" class="scanner-input" style="font-family: inherit;">
-                  <option value="Operativo">👷 Operativo (Solo da Entrada y Salida)</option>
-                  <option value="Administrativo">🛡️ Administrativo (Entrada/Salida + Buscar Grupos + Crear Usuarios)</option>
-                </select>
+                <div class="form-group">
+                  <label class="form-label" for="newUserRole">Rol</label>
+                  <select id="newUserRole" class="scanner-input" style="font-family: inherit;">
+                    <option value="Operativo">👷 Operativo</option>
+                    <option value="Administrativo">🛡️ Administrativo</option>
+                  </select>
+                </div>
               </div>
 
               <button type="submit" class="btn btn-primary btn-lg">
-                ➕ Guardar Usuario en Google Sheets
+                ➕ Crear Usuario
               </button>
             </form>
           </div>
 
           <!-- Lista de Usuarios -->
           <div class="card">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+            <div class="recientes-header">
               <div>
                 <div class="card-title" style="margin-bottom: 0.1rem;">👥 Usuarios Registrados</div>
-                <div style="font-size: 0.78rem; color: var(--text-muted);">Sincronizados con la pestaña <code>Usuarios</code></div>
+                <div style="font-size: 0.76rem; color: var(--text-muted);">Hoja <code>Usuarios</code> en Google Sheets</div>
               </div>
-              <button type="button" id="btnRefreshUsuarios" class="btn btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.78rem;">
+              <button type="button" id="btnRefreshUsuarios" class="btn btn-outline btn-sm">
                 🔄 Recargar
               </button>
             </div>
 
-            <div class="table-responsive">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Usuario</th>
-                    <th>Nombre</th>
-                    <th>PIN / Clave</th>
-                    <th>Rol</th>
-                    <th>Estado</th>
-                    <th>Acción</th>
-                  </tr>
-                </thead>
-                <tbody id="tbodyUsuarios"></tbody>
-              </table>
-            </div>
+            <div id="usuariosMobileList" class="mobile-cards-list"></div>
           </div>
 
         </div>
@@ -445,21 +470,21 @@
   </main>
 
   <!-- ===================================================================== -->
-  <!-- MODAL DE CONFIGURACIÓN GOOGLE SHEETS Y CREACIÓN DE HOJAS              -->
+  <!-- MODAL DE CONFIGURACIÓN GOOGLE SHEETS                                  -->
   <!-- ===================================================================== -->
   <div id="modalConfig" class="modal-backdrop hidden">
     <div class="modal-box">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-        <div class="card-title" style="margin-bottom: 0;">⚙️ Conexión con Google Sheets</div>
+        <div class="card-title" style="margin-bottom: 0;">⚙️ Conexión Google Sheets</div>
         <button type="button" id="btnCloseModal" class="btn btn-outline" style="padding: 0.25rem 0.6rem;">✕</button>
       </div>
 
-      <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 1rem;">
-        Hoja vinculada: <code>1GuqbZE-nPD_uqIXMPwxYT-LfBmhj_1L5bC8uXChcczg</code> (<strong>Base de datos Alto costo</strong>).
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.85rem;">
+        ID de Hoja: <code>1GuqbZE-nPD_uqIXMPwxYT-LfBmhj_1L5bC8uXChcczg</code>
       </p>
 
       <div class="form-group">
-        <label class="form-label" for="inputAppsScriptUrl">URL de Aplicación Web de Google Apps Script (termina en <code>/exec</code>)</label>
+        <label class="form-label" for="inputAppsScriptUrl">URL de Web App de Google Apps Script (<code>/exec</code>)</label>
         <input
           id="inputAppsScriptUrl"
           type="url"
@@ -471,27 +496,16 @@
 
       <div class="form-group" style="display: flex; align-items: center; gap: 0.6rem; margin-top: 0.75rem;">
         <input id="chkDemoMode" type="checkbox" style="width: 18px; height: 18px; accent-color: var(--primary);" />
-        <label for="chkDemoMode" style="font-size: 0.88rem; cursor: pointer;">
-          Activar <strong>Modo Demo Local</strong> (Permite usar y probar toda la app sin conexión)
+        <label for="chkDemoMode" style="font-size: 0.85rem; cursor: pointer;">
+          Activar <strong>Modo Demo Local</strong> (sin internet)
         </label>
       </div>
 
-      <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-sm); padding: 0.85rem; margin: 1rem 0; font-size: 0.8rem; color: #cbd5e1;">
-        <strong>📋 Hojas y columnas que se crean automáticamente en tu Google Sheet:</strong>
-        <ul style="margin-left: 1.2rem; margin-top: 0.35rem;">
-          <li><code>Usuarios</code>: Usuario, Nombre, Password, Rol, Activo, Fecha_Creacion, Creado_Por</li>
-          <li><code>Movimientos</code>: ID_Movimiento, Fecha_Hora, Fecha, Hora, Area, Tipo_Movimiento, Tienda, Entrega_Grupo, Ubicacion, Usuario, Nombre_Usuario, Rol_Usuario, Observaciones</li>
-          <li><code>Auditar</code>: Movimientos con ubicación de 7 dígitos (<code>SA-01-1</code>, <code>SA-01-2</code>, etc.)</li>
-          <li><code>Tarimas</code>: Movimientos con ubicación de 2 dígitos (<code>K1</code>, <code>K2</code>, <code>L1</code>, etc.)</li>
-          <li><code>Estado_Grupos</code>: Ubicación actual, Fecha de Entrada y Fecha de Salida por Grupo.</li>
-        </ul>
-      </div>
-
-      <div style="display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: flex-end; margin-top: 1rem;">
-        <button type="button" id="btnInitSheetsNow" class="btn btn-outline">
-          🛠️ Crear / Verificar Hojas en Google Sheets
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.1rem;">
+        <button type="button" id="btnInitSheetsNow" class="btn btn-outline" style="width: 100%;">
+          🛠️ Crear / Verificar Hojas y Columnas en Google Sheets
         </button>
-        <button type="button" id="btnSaveConfig" class="btn btn-primary">
+        <button type="button" id="btnSaveConfig" class="btn btn-primary" style="width: 100%;">
           💾 Guardar Configuración
         </button>
       </div>
