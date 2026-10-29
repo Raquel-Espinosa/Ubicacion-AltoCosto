@@ -2,6 +2,8 @@
 // CONFIGURACIÓN DE CONEXIÓN CON GOOGLE SHEETS Y APPS SCRIPT
 // ==========================================================================
 
+const DEFAULT_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyQCq1sH7UY04m8mI4O5AlUl9jDmLzhpUNcP6j1pulHa-9HKGszUGLqA1ZLFkLuV4MrkQ/exec";
+
 const CONFIG = {
   // ID de la hoja de Google Sheets ("Base de datos Alto costo")
   SHEET_ID: "1GuqbZE-nPD_uqIXMPwxYT-LfBmhj_1L5bC8uXChcczg",
@@ -14,12 +16,11 @@ const CONFIG = {
   TAB_TARIMAS: "Tarimas",
   TAB_ESTADO: "Estado_Grupos",
 
-  // URL del Web App de Google Apps Script (tras desplegar google-apps-script/Code.gs)
-  // Ejemplo: "https://script.google.com/macros/s/AKfycbx.../exec"
-  APPS_SCRIPT_WEBAPP_URL: "",
+  // URL del Web App de Google Apps Script desplegada
+  APPS_SCRIPT_WEBAPP_URL: DEFAULT_WEBAPP_URL,
 
-  // Modo Demo activo por defecto hasta que se vincule la URL de Apps Script
-  DEMO_MODE: true,
+  // Conectado en vivo a Google Sheets por defecto
+  DEMO_MODE: false,
 
   // Ubicaciones sugeridas para botones rápidos (además del escáner)
   UBICACIONES_AUDITAR: [
@@ -33,20 +34,23 @@ const CONFIG = {
     "M1", "M2", "M3"
   ],
 
-  APP_VERSION: "1.0.0"
+  APP_VERSION: "1.0.1"
 };
 
 (function initConfig() {
   const savedUrl = localStorage.getItem("grupos_entrega_apps_script_url");
   if (savedUrl && savedUrl.trim() !== "") {
     CONFIG.APPS_SCRIPT_WEBAPP_URL = savedUrl.trim();
-    CONFIG.DEMO_MODE = false;
+  } else {
+    CONFIG.APPS_SCRIPT_WEBAPP_URL = DEFAULT_WEBAPP_URL;
+    localStorage.setItem("grupos_entrega_apps_script_url", DEFAULT_WEBAPP_URL);
   }
+
   const savedDemo = localStorage.getItem("grupos_entrega_demo_mode");
-  if (savedDemo !== null) {
-    CONFIG.DEMO_MODE = savedDemo === "true";
-  }
-  if (!CONFIG.APPS_SCRIPT_WEBAPP_URL || CONFIG.APPS_SCRIPT_WEBAPP_URL.trim() === "") {
+  if (savedDemo === "true" && !CONFIG.APPS_SCRIPT_WEBAPP_URL) {
     CONFIG.DEMO_MODE = true;
+  } else {
+    CONFIG.DEMO_MODE = false;
+    localStorage.setItem("grupos_entrega_demo_mode", "false");
   }
 })();
