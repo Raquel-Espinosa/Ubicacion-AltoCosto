@@ -199,7 +199,7 @@ function ensureAllSheets(ss) {
       "Area",
       "Tipo_Movimiento",
       "Tienda",
-      "Entrega_Grupo",
+      "Grupo",
       "Ubicacion",
       "Usuario",
       "Nombre_Usuario",
@@ -209,6 +209,8 @@ function ensureAllSheets(ss) {
     shMov.appendRow(headersMov);
     styleHeaderRow(shMov, headersMov.length, "#0f172a", "#ffffff");
     shMov.setFrozenRows(1);
+  } else {
+    shMov.getRange(1, 8).setValue("Grupo");
   }
 
   // 3. Hoja Auditar (Ubicaciones de 7 caracteres: SA-01-1, SA-01-2, etc.)
@@ -222,7 +224,7 @@ function ensureAllSheets(ss) {
       "Fecha_Hora",
       "Tipo_Movimiento",
       "Tienda_4Dig",
-      "Entrega_Grupo_8Dig",
+      "Grupo_10Dig",
       "Ubicacion_7Dig",
       "Usuario",
       "Nombre_Usuario",
@@ -231,6 +233,8 @@ function ensureAllSheets(ss) {
     shAuditar.appendRow(headersAuditar);
     styleHeaderRow(shAuditar, headersAuditar.length, "#1d4ed8", "#ffffff");
     shAuditar.setFrozenRows(1);
+  } else {
+    shAuditar.getRange(1, 5).setValue("Grupo_10Dig");
   }
 
   // 4. Hoja Tarimas (Ubicaciones de 2 caracteres: K1, K2, L1, etc.)
@@ -244,7 +248,7 @@ function ensureAllSheets(ss) {
       "Fecha_Hora",
       "Tipo_Movimiento",
       "Tienda_4Dig",
-      "Entrega_Grupo_8Dig",
+      "Grupo_10Dig",
       "Ubicacion_2Dig",
       "Usuario",
       "Nombre_Usuario",
@@ -253,6 +257,8 @@ function ensureAllSheets(ss) {
     shTarimas.appendRow(headersTarimas);
     styleHeaderRow(shTarimas, headersTarimas.length, "#047857", "#ffffff");
     shTarimas.setFrozenRows(1);
+  } else {
+    shTarimas.getRange(1, 5).setValue("Grupo_10Dig");
   }
 
   // 5. Hoja Estado_Grupos (Resumen consolidado de cada grupo para consulta rápida)
@@ -262,7 +268,7 @@ function ensureAllSheets(ss) {
   }
   if (shEstado.getLastRow() === 0) {
     const headersEstado = [
-      "Entrega_Grupo",
+      "Grupo",
       "Tienda",
       "Area_Actual",
       "Ubicacion_Actual",
@@ -277,6 +283,8 @@ function ensureAllSheets(ss) {
     shEstado.appendRow(headersEstado);
     styleHeaderRow(shEstado, headersEstado.length, "#4338ca", "#ffffff");
     shEstado.setFrozenRows(1);
+  } else {
+    shEstado.getRange(1, 1).setValue("Grupo");
   }
 }
 
@@ -343,7 +351,7 @@ function handleRegistrarMovimiento(ss, payload) {
   const area = String(payload.area || "").trim().toUpperCase(); // "AUDITAR" o "TARIMAS"
   const tipo = String(payload.tipoMovimiento || "").trim().toUpperCase(); // "ENTRADA" o "SALIDA"
   const tienda = String(payload.tienda || "").trim();
-  const entrega = String(payload.entrega || "").trim();
+  const entrega = String(payload.grupo || payload.entrega || "").trim();
   const ubicacion = String(payload.ubicacion || "").trim().toUpperCase();
   const usuario = String(payload.usuario || "operativo").trim();
   const nombreUsuario = String(payload.nombreUsuario || usuario).trim();
@@ -360,8 +368,8 @@ function handleRegistrarMovimiento(ss, payload) {
   if (!/^\d{4}$/.test(tienda)) {
     return { success: false, message: "La Tienda debe tener exactamente 4 dígitos numéricos (ej. 7101)." };
   }
-  if (!/^\d{8}$/.test(entrega)) {
-    return { success: false, message: "La Entrega / Grupo debe tener exactamente 8 dígitos numéricos." };
+  if (!/^\d{10}$/.test(entrega)) {
+    return { success: false, message: "El Grupo debe tener exactamente 10 dígitos numéricos." };
   }
   if (area === "AUDITAR" && ubicacion.length !== 7) {
     return {

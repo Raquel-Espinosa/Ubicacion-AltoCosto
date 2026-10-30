@@ -247,15 +247,15 @@ async function stopCameraScanner() {
 function updateCameraTargetLabel() {
   const lbl = document.getElementById("lblCameraTarget");
   if (AppState.cameraMode === "BUSCAR") {
-    lbl.textContent = "📷 Escanea el Grupo (8 dígitos) a buscar";
+    lbl.textContent = "📷 Escanea el Grupo (10 dígitos) a buscar";
     return;
   }
   const t = document.getElementById("inputTienda").value.trim();
   const e = document.getElementById("inputEntrega").value.trim();
   if (t.length < 4) {
     lbl.textContent = "📷 Paso 1: Escanea Tienda (4 dígitos)";
-  } else if (e.length < 8) {
-    lbl.textContent = "📷 Paso 2: Escanea Entrega / Grupo (8 dígitos)";
+  } else if (e.length < 10) {
+    lbl.textContent = "📷 Paso 2: Escanea Grupo (10 dígitos)";
   } else {
     lbl.textContent = `📷 Paso 3: Escanea Ubicación (${AppState.currentArea === "AUDITAR" ? "7" : "2"} díg.)`;
   }
@@ -301,7 +301,7 @@ function handleCameraCodeScanned(rawText) {
     return;
   }
 
-  if (/^\d{8}$/.test(clean) || (inputEntrega.value.length < 8 && onlyDigits.length === 8)) {
+  if (/^\d{10}$/.test(clean) || (inputEntrega.value.length < 10 && onlyDigits.length === 10)) {
     inputEntrega.value = onlyDigits;
     playScannerFeedback(true);
     showToast(`📦 Grupo escaneado: ${onlyDigits}`, "success");
@@ -394,11 +394,11 @@ function renderQuickUbicaciones() {
       ) {
         handleRegistrarSubmit(new Event("submit"));
       } else {
-        // Si falta tienda o entrega, enfocar el campo pendiente
+        // Si falta tienda o grupo, enfocar el campo pendiente
         const t = document.getElementById("inputTienda").value.trim();
         const e = document.getElementById("inputEntrega").value.trim();
         if (t.length < 4) document.getElementById("inputTienda").focus();
-        else if (e.length < 8) document.getElementById("inputEntrega").focus();
+        else if (e.length < 10) document.getElementById("inputEntrega").focus();
       }
     });
     container.appendChild(chip);
@@ -431,9 +431,9 @@ function updateCounters() {
   document.getElementById("inputTienda").classList.toggle("input-valid", /^\d{4}$/.test(tienda));
 
   const cEntrega = document.getElementById("counterEntrega");
-  cEntrega.textContent = `${entrega.length}/8`;
-  cEntrega.classList.toggle("valid", /^\d{8}$/.test(entrega));
-  document.getElementById("inputEntrega").classList.toggle("input-valid", /^\d{8}$/.test(entrega));
+  cEntrega.textContent = `${entrega.length}/10`;
+  cEntrega.classList.toggle("valid", /^\d{10}$/.test(entrega));
+  document.getElementById("inputEntrega").classList.toggle("input-valid", /^\d{10}$/.test(entrega));
 
   const cUb = document.getElementById("counterUbicacion");
   cUb.textContent = `${ubicacion.length}/${reqUbLen}`;
@@ -447,7 +447,7 @@ function isCaptureFormValid() {
   const ubicacion = document.getElementById("inputUbicacion").value.trim();
   const reqUbLen = AppState.currentArea === "AUDITAR" ? 7 : 2;
 
-  return /^\d{4}$/.test(tienda) && /^\d{8}$/.test(entrega) && ubicacion.length === reqUbLen;
+  return /^\d{4}$/.test(tienda) && /^\d{10}$/.test(entrega) && ubicacion.length === reqUbLen;
 }
 
 // ==========================================================================
@@ -470,9 +470,9 @@ async function handleRegistrarSubmit(e) {
     document.getElementById("inputTienda").focus();
     return;
   }
-  if (!/^\d{8}$/.test(entrega)) {
+  if (!/^\d{10}$/.test(entrega)) {
     playScannerFeedback(false);
-    showToast("La Entrega / Grupo debe tener 8 dígitos.", "error");
+    showToast("El Grupo debe tener 10 dígitos.", "error");
     document.getElementById("inputEntrega").focus();
     return;
   }
@@ -631,7 +631,7 @@ async function ejecutarBusquedaGrupo(e) {
           <div class="grupo-result-card">
             <div class="grupo-header">
               <div>
-                <div style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:800;">Número de Grupo / Entrega</div>
+                <div style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:800;">Número de Grupo (10 dígitos)</div>
                 <div class="grupo-number">📦 ${escapeHtml(g.entrega)}</div>
               </div>
               <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
@@ -718,7 +718,7 @@ function exportarHistorialCSV() {
     "Area",
     "Tipo_Movimiento",
     "Tienda",
-    "Entrega_Grupo",
+    "Grupo",
     "Ubicacion",
     "Usuario",
     "Nombre_Usuario",
@@ -747,7 +747,7 @@ function exportarHistorialCSV() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `grupos_entrega_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `grupos_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -941,10 +941,10 @@ function bindEvents() {
   });
 
   inputEntrega.addEventListener("input", () => {
-    inputEntrega.value = inputEntrega.value.replace(/\D/g, "").slice(0, 8);
+    inputEntrega.value = inputEntrega.value.replace(/\D/g, "").slice(0, 10);
     updateCounters();
     updateCameraTargetLabel();
-    if (inputEntrega.value.length === 8) {
+    if (inputEntrega.value.length === 10) {
       inputUbicacion.focus();
       inputUbicacion.select();
     }

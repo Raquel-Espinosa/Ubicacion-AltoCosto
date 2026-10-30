@@ -4,7 +4,7 @@
 
 const API = {
   STORAGE_USERS_KEY: "grupos_entrega_demo_users_v1",
-  STORAGE_MOVS_KEY: "grupos_entrega_demo_movs_v1",
+  STORAGE_MOVS_KEY: "grupos_entrega_demo_movs_v2",
 
   initDemoData() {
     if (!localStorage.getItem(this.STORAGE_USERS_KEY)) {
@@ -41,7 +41,7 @@ const API = {
           area: "AUDITAR",
           tipoMovimiento: "ENTRADA",
           tienda: "7101",
-          entrega: "80123456",
+          entrega: "8012345678",
           ubicacion: "SA-01-1",
           usuario: "operativo",
           nombreUsuario: "Operador Escáner 1",
@@ -56,7 +56,7 @@ const API = {
           area: "AUDITAR",
           tipoMovimiento: "SALIDA",
           tienda: "7101",
-          entrega: "80123456",
+          entrega: "8012345678",
           ubicacion: "SA-01-1",
           usuario: "operativo",
           nombreUsuario: "Operador Escáner 1",
@@ -71,7 +71,7 @@ const API = {
           area: "TARIMAS",
           tipoMovimiento: "ENTRADA",
           tienda: "7101",
-          entrega: "80123456",
+          entrega: "8012345678",
           ubicacion: "K1",
           usuario: "operativo",
           nombreUsuario: "Operador Escáner 1",
@@ -86,7 +86,7 @@ const API = {
           area: "AUDITAR",
           tipoMovimiento: "ENTRADA",
           tienda: "7104",
-          entrega: "80987654",
+          entrega: "8098765432",
           ubicacion: "SA-02-1",
           usuario: "operativo",
           nombreUsuario: "Operador Escáner 1",
@@ -101,7 +101,7 @@ const API = {
           area: "TARIMAS",
           tipoMovimiento: "ENTRADA",
           tienda: "7112",
-          entrega: "80554433",
+          entrega: "8055443322",
           ubicacion: "L1",
           usuario: "admin",
           nombreUsuario: "Administrador General",

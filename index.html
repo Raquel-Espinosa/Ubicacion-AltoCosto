@@ -190,11 +190,11 @@
                   </div>
                 </div>
 
-                <!-- Entrega / Grupo (8 dígitos) -->
+                <!-- Grupo (10 dígitos) -->
                 <div class="form-group">
                   <label class="form-label" for="inputEntrega">
-                    <span>📦 Entrega / Grupo</span>
-                    <span id="counterEntrega" class="char-counter">0/8</span>
+                    <span>📦 Grupo</span>
+                    <span id="counterEntrega" class="char-counter">0/10</span>
                   </label>
                   <div class="scanner-input-wrap">
                     <input
@@ -202,9 +202,9 @@
                       type="text"
                       inputmode="numeric"
                       pattern="[0-9]*"
-                      maxlength="8"
+                      maxlength="10"
                       class="scanner-input"
-                      placeholder="8 dígitos"
+                      placeholder="10 dígitos"
                       required
                     />
                   </div>
@@ -305,25 +305,25 @@
       </div>
 
       <!-- ================================================================= -->
-      <!-- PESTAÑA 3: BUSCAR GRUPO DE ENTREGA (SOLO ADMINISTRATIVO)          -->
+      <!-- PESTAÑA 3: BUSCAR GRUPO (SOLO ADMINISTRATIVO)                     -->
       <!-- ================================================================= -->
       <div id="tabBuscar" class="tab-pane hidden">
         <div class="card" style="margin-bottom: 1rem;">
-          <div class="card-title">🔍 Buscar Grupo de Entrega</div>
+          <div class="card-title">🔍 Buscar Grupo</div>
           <p class="card-subtitle">
-            Ingresa o escanea el <strong>Número de Grupo / Entrega (8 dígitos)</strong> para ver su ubicación actual y la fecha en que entró o salió.
+            Ingresa o escanea el <strong>Número de Grupo (10 dígitos)</strong> para ver su ubicación actual y la fecha en que entró o salió.
           </p>
 
           <form id="formBuscarGrupo" class="search-bar-grid">
             <div>
-              <label class="form-label" for="searchGrupoInput">No. de Grupo / Entrega (8 dígitos) o Ubicación</label>
+              <label class="form-label" for="searchGrupoInput">No. de Grupo (10 dígitos) o Ubicación</label>
               <div style="display: flex; gap: 0.4rem;">
                 <input
                   id="searchGrupoInput"
                   type="text"
                   inputmode="numeric"
                   class="scanner-input"
-                  placeholder="Ej. 80123456"
+                  placeholder="Ej. 8012345678"
                 />
                 <button type="button" id="btnScanSearchGrupo" class="btn btn-camera" style="padding: 0 0.85rem;" title="Escanear grupo con cámara">
                   📷
@@ -387,7 +387,7 @@
               <thead>
                 <tr>
                   <th>Fecha y Hora</th>
-                  <th>Grupo / Entrega</th>
+                  <th>Grupo</th>
                   <th>Tienda</th>
                   <th>Área</th>
                   <th>Movimiento</th>

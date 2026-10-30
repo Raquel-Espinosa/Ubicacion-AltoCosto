@@ -11,22 +11,22 @@ Aplicación web responsiva optimizada para **escáneres de código de barras (Ha
 ### 1. Dos Modalidades de Captura con Escáner (`ENTRADA` y `SALIDA`)
 - **🔍 Para Auditar:**
   - **Tienda:** `4 dígitos` numéricos (ej. `7101`).
-  - **Entrega / Número de Grupo:** `8 dígitos` numéricos (ej. `80123456`).
+  - **Grupo:** `10 dígitos` numéricos (ej. `8012345678`).
   - **Ubicación:** `7 caracteres` (ej. `SA-01-1`, `SA-01-2`, `SA-01-3`, `SA-02-1`). *(Si el escáner lee `SA011` sin guiones, el sistema lo formatea automáticamente a `SA-01-1`).*
   - **Movimiento:** Registra si **Entra (`ENTRADA`)** o **Sale (`SALIDA`)**.
 - **📦 En las Tarimas (Grupos de Entrega):**
   - **Tienda:** `4 dígitos` numéricos (ej. `7101`).
-  - **Entrega / Número de Grupo:** `8 dígitos` numéricos (ej. `80123456`).
+  - **Grupo:** `10 dígitos` numéricos (ej. `8012345678`).
   - **Ubicación:** `2 caracteres` (ej. `K1`, `K2`, `K3`, `L1`, `L2`, etc.).
   - **Movimiento:** Registra si **Entra (`ENTRADA`)** o **Sale (`SALIDA`)**.
-- **Auto-Avance para Escáner:** Al escanear los 4 dígitos de la tienda salta automáticamente al campo de Entrega; al escanear los 8 dígitos de la entrega salta a Ubicación; y al completar la ubicación guarda automáticamente el registro con confirmación sonora (beep).
+- **Auto-Avance para Escáner:** Al escanear los 4 dígitos de la tienda salta automáticamente al campo de Grupo; al escanear los 10 dígitos del grupo salta a Ubicación; y al completar la ubicación guarda automáticamente el registro con confirmación sonora (beep).
 
 ### 2. Dos Roles de Usuario
 - **👷 Usuario Operativo (`Operativo`):**
   - Acceso exclusivo al módulo de **Captura de Entrada y Salida** (tanto para **Auditar** como para **Tarimas**) y visualización de sus capturas recientes.
 - **🛡️ Usuario Administrativo (`Administrativo`):**
   - Puede registrar **Entradas y Salidas** igual que el operativo.
-  - **🔍 Buscador por Número de Grupo / Entrega:** Al ingresar o escanear el número de grupo (`8 dígitos`), muestra su **ubicación actual/última**, el área (`AUDITAR` o `TARIMAS`), la **fecha y hora exacta en la que entró** y la **fecha y hora exacta en la que salió**, además del historial completo y exportación a CSV/Excel.
+  - **🔍 Buscador por Número de Grupo:** Al ingresar o escanear el número de grupo (`10 dígitos`), muestra su **ubicación actual/última**, el área (`AUDITAR` o `TARIMAS`), la **fecha y hora exacta en la que entró** y la **fecha y hora exacta en la que salió**, además del historial completo y exportación a CSV/Excel.
   - **👥 Creación y Administración de Usuarios:** Permite dar de alta nuevos usuarios (`Operativo` o `Administrativo`), asignar contraseña/PIN y activar o desactivar cuentas.
 
 ---
@@ -41,13 +41,13 @@ El archivo `google-apps-script/Code.gs` crea y formatea automáticamente las sig
      - `admin` / Clave: `1234` (Rol: `Administrativo`)
      - `operativo` / Clave: `1234` (Rol: `Operativo`)
 2. **`Movimientos`** *(Bitácora general consolidada)*
-   - Columnas: `ID_Movimiento` | `Fecha_Hora` | `Fecha` | `Hora` | `Area` | `Tipo_Movimiento` | `Tienda` | `Entrega_Grupo` | `Ubicacion` | `Usuario` | `Nombre_Usuario` | `Rol_Usuario` | `Observaciones`
+   - Columnas: `ID_Movimiento` | `Fecha_Hora` | `Fecha` | `Hora` | `Area` | `Tipo_Movimiento` | `Tienda` | `Grupo` | `Ubicacion` | `Usuario` | `Nombre_Usuario` | `Rol_Usuario` | `Observaciones`
 3. **`Auditar`** *(Solo movimientos de grupos para auditar)*
-   - Columnas: `ID_Movimiento` | `Fecha_Hora` | `Tipo_Movimiento` | `Tienda_4Dig` | `Entrega_Grupo_8Dig` | `Ubicacion_7Dig` | `Usuario` | `Nombre_Usuario` | `Observaciones`
+   - Columnas: `ID_Movimiento` | `Fecha_Hora` | `Tipo_Movimiento` | `Tienda_4Dig` | `Grupo_10Dig` | `Ubicacion_7Dig` | `Usuario` | `Nombre_Usuario` | `Observaciones`
 4. **`Tarimas`** *(Solo movimientos de grupos en tarimas)*
-   - Columnas: `ID_Movimiento` | `Fecha_Hora` | `Tipo_Movimiento` | `Tienda_4Dig` | `Entrega_Grupo_8Dig` | `Ubicacion_2Dig` | `Usuario` | `Nombre_Usuario` | `Observaciones`
+   - Columnas: `ID_Movimiento` | `Fecha_Hora` | `Tipo_Movimiento` | `Tienda_4Dig` | `Grupo_10Dig` | `Ubicacion_2Dig` | `Usuario` | `Nombre_Usuario` | `Observaciones`
 5. **`Estado_Grupos`** *(Resumen en vivo por número de grupo)*
-   - Columnas: `Entrega_Grupo` | `Tienda` | `Area_Actual` | `Ubicacion_Actual` | `Estado_Actual` | `Fecha_Hora_Entrada` | `Usuario_Entrada` | `Fecha_Hora_Salida` | `Usuario_Salida` | `Ultima_Actualizacion` | `Total_Movimientos`
+   - Columnas: `Grupo` | `Tienda` | `Area_Actual` | `Ubicacion_Actual` | `Estado_Actual` | `Fecha_Hora_Entrada` | `Usuario_Entrada` | `Fecha_Hora_Salida` | `Usuario_Salida` | `Ultima_Actualizacion` | `Total_Movimientos`
 
 ---
 
